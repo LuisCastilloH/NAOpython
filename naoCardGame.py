@@ -24,6 +24,89 @@ initialSentence = """
     Hola! Me llamo NAO y vamos a jugar algo nuevo! Estan listos?
 """
 
+# Vision --------------------------
+redColor=False
+brownColor= False
+lenContRed=0
+lenContBrown=0
+lenContWhite=0
+
+def contoursFilter():
+    print 'entra a funcion contours'
+    ##-----Read Mask--------------------##
+    img = cv2.imread('dilation3.png',0)
+    ##-----Threshold Filter-------------##
+    ret,thresh = cv2.threshold(img,127,255,0)
+    print 'iterating through contours'
+    ##-----Find contours-------------##
+    contours,hierarchy = cv2.findContours(thresh, 1, 2)
+    ##-----Iterate all contours-------------##
+    i=0
+
+    # checar contours...que pasa cuando no hay contours...
+    # contours --> []
+    # posible solucion sig. linea
+    # if len(contours) > 0:
+    # se puede quitar todo lo de abajo..solo quedarse con contours
+    for cnt in contours:
+        M = cv2.moments(cnt)
+    #print M
+     
+    #Find centroid
+    m00 = M['m00']
+    centroid_x, centroid_y = None, None
+    if m00 != 0:
+        centroid_x = int(M['m10']/m00)
+        centroid_y = int(M['m01']/m00)
+
+    # Assume no centroid
+    ctr = (-1,-1)
+
+    # Use centroid if it exists
+    if centroid_x != None and centroid_y != None:
+        ctr = (centroid_x, centroid_y)
+        #Draw white circle in at centroid in image
+        cv2.circle(img, ctr, 30, (255,255,255),5)
+
+    #else:
+        #print('no mass center in contour'+ str(i))
+
+    i=i+1
+    return contours
+
+def redFilter(hsv):
+    lower_range = np.array([0, 50, 50], dtype=np.uint8) #red color
+    upper_range = np.array([10, 255, 255], dtype=np.uint8)
+
+    mask = cv2.inRange(hsv, lower_range, upper_range)
+
+    #Remove noise of the selected mask
+    kernel = np.ones((5,5),np.uint8)
+    erosion = cv2.erode(mask, kernel, iterations=1)
+    erosion2 = cv2.erode(erosion, kernel, iterations=1)
+    erosion3 = cv2.erode(erosion2, kernel, iterations=1)
+    dilation = cv2.dilate(erosion3,kernel, iterations =1)
+    dilation2 = cv2.dilate(dilation,kernel, iterations =1) 
+    dilation3 = cv2.dilate(dilation2,kernel, iterations =1)
+
+    #cv2.imshow('dilation3',dilation3)
+    cv2.imwrite('dilation3.png', dilation3)
+
+    contRed= contoursFilter()
+
+    global lenContRed
+    lenContRed= len(contRed)
+
+    #print("Length Contours: "+str(lenContRed))
+
+    if(lenContRed >= 1):
+        return True
+
+    else:
+        return False
+# Vision --------------------------
+
+
 def mainRoutine():
     # Greetings
     tts = ALProxy('ALTextToSpeech')
@@ -44,7 +127,22 @@ def mainRoutine():
     # verify 
     print 'WordRecognized {}'.format(data)
     # ---------- ------------------ ----------------- #
-    # ---------- Vision Recognition ----------------- # 
+    # ---------- Vision Recognition ----------------- #
+    photoCP = ALProxy('ALPhotoCapture')
+    photoCP.setResolution(2)
+    photoCP.setPictureFormat('jpg')
+    photoCP.takePictures(5,'/home/nao/pythonProjects', 'nao')
+    img=cv2.imread('nao_4.jpg')  #take the last image (the good one)
+    #cv2.imshow('nao9',img)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    redColor = redFilter(hsv)
+
+    if redColor:
+        print lenContRed
+        print 'Red detected'
+    else:
+        print 'No color detected'
     # ---------- ------------------ ----------------- #
 
 class ReactToTouch(ALModule):
