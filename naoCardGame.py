@@ -41,37 +41,6 @@ def contoursFilter():
     ##-----Find contours-------------##
     contours,hierarchy = cv2.findContours(thresh, 1, 2)
     ##-----Iterate all contours-------------##
-    i=0
-
-    # checar contours...que pasa cuando no hay contours...
-    # contours --> []
-    # posible solucion sig. linea
-    # if len(contours) > 0:
-    # se puede quitar todo lo de abajo..solo quedarse con contours
-    for cnt in contours:
-        M = cv2.moments(cnt)
-    #print M
-     
-    #Find centroid
-    m00 = M['m00']
-    centroid_x, centroid_y = None, None
-    if m00 != 0:
-        centroid_x = int(M['m10']/m00)
-        centroid_y = int(M['m01']/m00)
-
-    # Assume no centroid
-    ctr = (-1,-1)
-
-    # Use centroid if it exists
-    if centroid_x != None and centroid_y != None:
-        ctr = (centroid_x, centroid_y)
-        #Draw white circle in at centroid in image
-        cv2.circle(img, ctr, 30, (255,255,255),5)
-
-    #else:
-        #print('no mass center in contour'+ str(i))
-
-    i=i+1
     return contours
 
 def redFilter(hsv):
@@ -104,6 +73,67 @@ def redFilter(hsv):
 
     else:
         return False
+
+def brownFilter(hsv):
+  lower_range = np.array([20, 50, 50], dtype=np.uint8) 
+  upper_range = np.array([40, 255, 255], dtype=np.uint8)
+
+  mask = cv2.inRange(hsv, lower_range, upper_range)
+
+  #Remove noise of the selected mask
+  kernel = np.ones((5,5),np.uint8)
+  erosion = cv2.erode(mask, kernel, iterations=1)
+  erosion2 = cv2.erode(erosion, kernel, iterations=1)
+  erosion3 = cv2.erode(erosion2, kernel, iterations=1)
+  dilation = cv2.dilate(erosion3,kernel, iterations =1)
+  dilation2 = cv2.dilate(dilation,kernel, iterations =1) 
+  dilation3 = cv2.dilate(dilation2,kernel, iterations =1)
+
+  #cv2.imshow('dilation3',dilation3)
+  cv2.imwrite('dilation3.png', dilation3)
+
+  contBrown= contoursFilter()
+
+  global lenContBrown
+  
+  lenContBrown= len(contBrown)
+
+  if(lenContBrown >= 1):
+    return True
+
+  else:
+    return False
+
+def whiteFilter(hsv):
+  lower_range = np.array([0, 0, 140], dtype=np.uint8) #red color
+  upper_range = np.array([0, 255, 255], dtype=np.uint8)
+
+  mask = cv2.inRange(hsv, lower_range, upper_range)
+
+  #Remove noise of the selected mask
+  kernel = np.ones((5,5),np.uint8)
+  erosion = cv2.erode(mask, kernel, iterations=1)
+  erosion2 = cv2.erode(erosion, kernel, iterations=1)
+  erosion3 = cv2.erode(erosion2, kernel, iterations=1)
+  dilation = cv2.dilate(erosion3,kernel, iterations =1)
+  dilation2 = cv2.dilate(dilation,kernel, iterations =1) 
+  dilation3 = cv2.dilate(dilation2,kernel, iterations =1)
+
+  #cv2.imshow('dilation3',dilation3)
+  cv2.imwrite('dilation3.png', dilation3)
+  
+  contWhite= contoursFilter()
+  
+  global lenContWhite
+  lenContWhite= len(contWhite)
+
+  #print("Length Contours: "+str(lenContRed))
+
+  if(lenContWhite >= 1):
+    return True
+
+  else:
+    return False
 # Vision --------------------------
 
 
@@ -137,12 +167,27 @@ def mainRoutine():
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
     redColor = redFilter(hsv)
+    brownColor =brownFilter(hsv)
+    whiteColor =whiteFilter(hsv)
 
-    if redColor:
-        print lenContRed
-        print 'Red detected'
+    if lenContWhite != 0 or lenContBrown != 0 or lenContRed != 0:
+
+      l=[lenContWhite, lenContRed, lenContBrown]
+      l.sort()
+
+      colorDetected= l[2] #poner el nombre del color de la longitud mas larga
+
+      if colorDetected == lenContRed:
+        print("Red detected")
+
+      elif colorDetected == lenContWhite:
+        print("White detected")
+
+      elif colorDetected == lenContBrown:
+        print("Brown detected")
+
     else:
-        print 'No color detected'
+      print("no color detected")
     # ---------- ------------------ ----------------- #
 
 class ReactToTouch(ALModule):
